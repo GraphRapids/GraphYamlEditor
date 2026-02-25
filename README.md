@@ -1,6 +1,6 @@
 # GraphYamlEditor
 
-Reusable Monaco-based YAML editor component for GraphRapids apps.
+Reusable Monaco-based editor component for GraphRapids YAML syntax.
 
 This repository contains the standalone `@graphrapids/graph-yaml-editor` package extracted from GraphEditor so it can be reused across web apps.
 
