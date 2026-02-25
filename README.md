@@ -28,9 +28,14 @@ src/index.js                                      # package export
 src/components/GraphYamlEditor/index.js           # component export
 src/components/GraphYamlEditor/GraphYamlEditor.jsx
 src/components/GraphYamlEditor/GraphYamlEditor.test.jsx
+src/components/GraphYamlEditor/GraphYamlEditor.stories.jsx
+src/testing/autocompleteHarness.js                 # shared harness logic for stories/e2e
 src/test/setup.js                                 # test setup
+e2e/autocomplete.behavior.spec.ts                 # playwright autocomplete behavior suite
+playwright.config.ts                              # playwright configuration
 scripts/build.mjs                                 # package build script
 vitest.config.js                                  # test configuration
+.storybook/                                       # storybook configuration
 .github/workflows/                                # CI, tests, release, secret scan
 ```
 
@@ -46,6 +51,18 @@ Run tests:
 
 ```bash
 npm run test
+```
+
+Run component behavior e2e tests:
+
+```bash
+npm run test:e2e
+```
+
+Run Storybook for isolated component development:
+
+```bash
+npm run storybook
 ```
 
 Build package output:
