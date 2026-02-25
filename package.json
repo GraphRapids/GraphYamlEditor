@@ -1,0 +1,31 @@
+{
+  "name": "@graphrapids/graph-yaml-editor",
+  "version": "0.1.0",
+  "description": "Reusable Monaco-based YAML editor component used by GraphRapids.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node ./scripts/build.mjs",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.10"
+  },
+  "license": "Apache-2.0"
+}
