@@ -21,6 +21,12 @@ const DEFAULT_EDITOR_OPTIONS = {
   tabCompletion: 'on',
 };
 
+const DEFAULT_EDITOR_SHELL_STYLE = {
+  width: '100%',
+  height: '100%',
+  minHeight: 320,
+};
+
 export default function GraphYamlEditor({
   value,
   onChange,
@@ -331,7 +337,18 @@ export default function GraphYamlEditor({
             if (isItemStartLabel) {
               insertText = `${' '.repeat(desiredIndent)}- ${suggestionKey}: `;
             } else {
-              insertText = `${' '.repeat(desiredIndent + indentSize)}${suggestionKey}: `;
+              const isCollectionKey = suggestionKey === 'nodes' || suggestionKey === 'links';
+              if (isCollectionKey) {
+                const nextKey =
+                  suggestionKey === 'nodes'
+                    ? autocompleteSpecRef.current.node.entryStartKey
+                    : autocompleteSpecRef.current.link.entryStartKey;
+                insertText = `${' '.repeat(desiredIndent + indentSize)}${suggestionKey}:\n${' '.repeat(
+                  desiredIndent + indentSize + indentSize
+                )}- ${nextKey}: `;
+              } else {
+                insertText = `${' '.repeat(desiredIndent + indentSize)}${suggestionKey}: `;
+              }
             }
           } else if (context.kind === 'key') {
             const normalizedKey = String(item || '').trim();
@@ -340,7 +357,7 @@ export default function GraphYamlEditor({
                 normalizedKey === 'nodes'
                   ? autocompleteSpecRef.current.node.entryStartKey
                   : autocompleteSpecRef.current.link.entryStartKey;
-              insertText = `${normalizedKey}:\n${' '.repeat(currentIndent + indentSize)}- ${nextKey}: `;
+              insertText = `${normalizedKey}:\n${' '.repeat(indentSize)}- ${nextKey}: `;
             } else {
               insertText = `${normalizedKey}: `;
             }
@@ -539,7 +556,11 @@ export default function GraphYamlEditor({
         modelLines.push(typeof model.getLineContent === 'function' ? model.getLineContent(i) : '');
       }
       const currentLineIndex = Math.max(0, Math.min(position.lineNumber - 1, modelLines.length - 1));
-      if (isRootBoundaryEmptyLine(modelLines, currentLineIndex)) {
+      const currentLineIndent = lineIndent(lineContent);
+      const currentSection = inferYamlSection(modelLines, currentLineIndex, currentLineIndent).section;
+      const shouldUseRootBoundaryHandling =
+        isRootBoundaryEmptyLine(modelLines, currentLineIndex) && currentSection === 'root';
+      if (shouldUseRootBoundaryHandling) {
         event.preventDefault?.();
         event.stopPropagation?.();
         if (position.column > 1) {
@@ -621,7 +642,7 @@ export default function GraphYamlEditor({
   }
 
   return (
-    <div className="editor-shell" aria-label="YAML editor">
+    <div className="editor-shell" aria-label="YAML editor" style={DEFAULT_EDITOR_SHELL_STYLE}>
       <Editor
         path="graph.yaml"
         keepCurrentModel

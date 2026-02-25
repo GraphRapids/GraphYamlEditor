@@ -14,6 +14,26 @@ Use this file as a running log between work sessions.
 
 ## Current
 
+### 2026-02-25 (GraphAutocompleteCore integration)
+- Summary: Moved Storybook/e2e autocomplete harness logic to new `GraphAutocompleteCore` repository.
+- Changes:
+  - Replaced local harness import in story with package import.
+  - Removed `src/testing/autocompleteHarness.js`.
+  - Added `@graphrapids/graph-autocomplete-core` dev dependency.
+  - Updated docs/context notes to reflect external core package ownership.
+- Files touched:
+  - `src/components/GraphYamlEditor/GraphYamlEditor.stories.jsx`
+  - `package.json`
+  - `README.md`
+  - `PROJECT_CONTEXT.md`
+- Tests run:
+  - `npm run test -- src/components/GraphYamlEditor/GraphYamlEditor.test.jsx --run`
+  - `npm run test:e2e -- e2e/autocomplete.behavior.spec.ts`
+  - `npm run build`
+- Known issues: none.
+- Next steps:
+  - Rebuild/pack GraphAutocompleteCore and verify GraphYamlEditor e2e behavior.
+
 ### 2026-02-25 (Storybook + Playwright setup)
 - Summary: Added isolated visual development and browser-behavior testing for GraphYamlEditor.
 - Changes:

@@ -54,6 +54,8 @@ When behavior changes:
 ## Integration Notes
 GraphEditor consumes local tarball builds:
 - `file:../GraphYamlEditor/graphrapids-graph-yaml-editor-0.1.0.tgz`
+GraphYamlEditor Storybook/e2e harness consumes autocomplete core package:
+- `file:../GraphAutocompleteCore/graphrapids-graph-autocomplete-core-0.1.0.tgz`
 
 After GraphYamlEditor changes:
 1. `npm run build`
@@ -62,6 +64,8 @@ After GraphYamlEditor changes:
 
 ## Open Decisions / TODO
 - [ ] Extract autocomplete engine from component file into dedicated module.
+- [x] Split autocomplete engine into a separate reusable repository/package (editor-agnostic core + Monaco adapter).
+- [ ] Replace hardcoded node/link `type` suggestion lists with schema/registry-driven values (after repo split).
 - [ ] Add scenario-row to test-case traceability table.
 - [ ] Expand diagnostics mapping for domain validation locations.
 

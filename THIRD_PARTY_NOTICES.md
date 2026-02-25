@@ -17,6 +17,7 @@ GraphYamlEditor is licensed under Apache-2.0. This file documents third-party so
 
 | Component | How GraphYamlEditor uses it | License | Source |
 | --- | --- | --- | --- |
+| `@graphrapids/graph-autocomplete-core` | Storybook/e2e autocomplete harness logic | Apache-2.0 | https://github.com/GraphRapids/GraphAutocompleteCore |
 | `esbuild` | Bundling package output to `dist/` | MIT | https://github.com/evanw/esbuild |
 | `vitest` | Unit test runner | MIT | https://github.com/vitest-dev/vitest |
 | `@testing-library/react` | React component tests | MIT | https://github.com/testing-library/react-testing-library |

@@ -18,7 +18,7 @@ import {
   LINK_TYPE_SUGGESTIONS,
   markerFromDiagnostic,
   NODE_TYPE_SUGGESTIONS,
-} from '../../testing/autocompleteHarness.js';
+} from '@graphrapids/graph-autocomplete-core';
 
 function GraphYamlEditorHarness({ initialValue = '', theme = 'light' }) {
   const [value, setValue] = useState(initialValue);

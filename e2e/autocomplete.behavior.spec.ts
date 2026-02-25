@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import YAML from 'js-yaml';
 
 const HARNESS_STORY_URL = '/iframe.html?id=components-graphyamleditor--autocomplete-harness&viewMode=story';
 
@@ -122,4 +123,45 @@ test('label Enter advances to next link-step suggestions without re-suggesting l
   await expect.poll(async () => editorValue(page)).toBe('links:\n  - from: A\n    to: B\n    label: my_link_label\n  ');
   await triggerSuggest(page);
   await expect.poll(async () => suggestionLabels(page)).toEqual(['- from', 'type']);
+});
+
+test('selecting nested nodes key expands to first nested node name step', async ({ page }) => {
+  await setEditorState(page, 'nodes:\n  - name: node-1\n    no', 3, 7);
+  await triggerSuggest(page);
+  await expect.poll(async () => suggestionLabels(page)).toEqual(['nodes']);
+
+  await pressEditorKey(page, 'Enter');
+  await expect.poll(async () => editorValue(page)).toBe('nodes:\n  - name: node-1\n    nodes:\n      - name: ');
+});
+
+test('after node name, selecting nodes inserts nested name step with valid yaml', async ({ page }) => {
+  await setEditorState(page, 'nodes:\n  - name: node-1\n  no', 3, 5);
+  await triggerSuggest(page);
+  await expect.poll(async () => suggestionLabels(page)).toEqual(['nodes']);
+
+  await pressEditorKey(page, 'Enter');
+  await expect.poll(async () => editorValue(page)).toBe(
+    'nodes:\n  - name: node-1\n    nodes:\n      - name: '
+  );
+  const value = await editorValue(page);
+  expect(() => YAML.load(value)).not.toThrow();
+});
+
+test('backspace on nested trailing item line dedents one level and opens item suggestions', async ({ page }) => {
+  await setEditorState(
+    page,
+    'nodes:\n  - name: subgraph\n    nodes:\n      - name: node-1\n        type: router\n      - name: node-2\n        type: router\n      ',
+    8,
+    7
+  );
+
+  await pressEditorKey(page, 'Backspace');
+  await expect.poll(async () => editorPosition(page)).toEqual({ lineNumber: 8, column: 5 });
+  await expect.poll(async () => editorValue(page)).toBe(
+    'nodes:\n  - name: subgraph\n    nodes:\n      - name: node-1\n        type: router\n      - name: node-2\n        type: router\n    '
+  );
+  await expect.poll(async () => suggestionLabels(page)).toEqual(['- name']);
+
+  const value = await editorValue(page);
+  expect(() => YAML.load(value)).not.toThrow();
 });

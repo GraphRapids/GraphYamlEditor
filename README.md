@@ -29,7 +29,6 @@ src/components/GraphYamlEditor/index.js           # component export
 src/components/GraphYamlEditor/GraphYamlEditor.jsx
 src/components/GraphYamlEditor/GraphYamlEditor.test.jsx
 src/components/GraphYamlEditor/GraphYamlEditor.stories.jsx
-src/testing/autocompleteHarness.js                 # shared harness logic for stories/e2e
 src/test/setup.js                                 # test setup
 e2e/autocomplete.behavior.spec.ts                 # playwright autocomplete behavior suite
 playwright.config.ts                              # playwright configuration
@@ -94,6 +93,8 @@ After changes in this repo:
 ```bash
 npm install @graphrapids/graph-yaml-editor@file:../GraphYamlEditor/graphrapids-graph-yaml-editor-0.1.0.tgz --force
 ```
+
+Autocomplete harness behavior in Storybook/e2e is provided by `@graphrapids/graph-autocomplete-core`.
 
 ## Governance
 

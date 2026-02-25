@@ -355,7 +355,38 @@ describe('GraphYamlEditor', () => {
 
     const suggestion = result.suggestions.find((item) => item.label === 'nodes');
     expect(suggestion).toBeTruthy();
-    expect(suggestion.insertText).toBe('nodes:\n      - name: ');
+    expect(suggestion.insertText).toBe('nodes:\n  - name: ');
+  });
+
+  it('builds nested nodes insertion for item-key continuation context', () => {
+    const props = createDefaultProps({
+      value: 'nodes:\n  - name: node-1\n    no',
+      buildAutocompleteRuntimeFromMeta: () => ({
+        context: { kind: 'itemKey', section: 'nodes', prefix: 'no' },
+        objectKeys: [],
+        itemContextKeys: ['name'],
+        canContinueItemContext: true,
+        entities: { nodeNames: ['node-1'], portsByNode: new Map() },
+      }),
+      getYamlAutocompleteSuggestions: () => ['  nodes'],
+    });
+    state.modelValue = props.value;
+    render(<GraphYamlEditor {...props} />);
+
+    const model = {
+      getValue: () => props.value,
+      getVersionId: () => 100,
+      getLineContent: () => '    no',
+    };
+
+    const result = state.completionProvider.provideCompletionItems(model, {
+      lineNumber: 3,
+      column: 7,
+    });
+
+    const suggestion = result.suggestions.find((item) => item.label === '  nodes');
+    expect(suggestion).toBeTruthy();
+    expect(suggestion.insertText).toBe('    nodes:\n      - name: ');
   });
 
   it('inserts type values as snippets and triggers next-step suggestions', () => {

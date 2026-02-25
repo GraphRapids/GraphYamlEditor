@@ -20,6 +20,11 @@ var DEFAULT_EDITOR_OPTIONS = {
   },
   tabCompletion: "on"
 };
+var DEFAULT_EDITOR_SHELL_STYLE = {
+  width: "100%",
+  height: "100%",
+  minHeight: 320
+};
 function GraphYamlEditor({
   value,
   onChange,
@@ -295,14 +300,23 @@ ${" ".repeat(indentSize)}- ${nextKey}: `;
             if (isItemStartLabel) {
               insertText = `${" ".repeat(desiredIndent)}- ${suggestionKey}: `;
             } else {
-              insertText = `${" ".repeat(desiredIndent + indentSize)}${suggestionKey}: `;
+              const isCollectionKey = suggestionKey === "nodes" || suggestionKey === "links";
+              if (isCollectionKey) {
+                const nextKey = suggestionKey === "nodes" ? autocompleteSpecRef.current.node.entryStartKey : autocompleteSpecRef.current.link.entryStartKey;
+                insertText = `${" ".repeat(desiredIndent + indentSize)}${suggestionKey}:
+${" ".repeat(
+                  desiredIndent + indentSize + indentSize
+                )}- ${nextKey}: `;
+              } else {
+                insertText = `${" ".repeat(desiredIndent + indentSize)}${suggestionKey}: `;
+              }
             }
           } else if (context.kind === "key") {
             const normalizedKey = String(item || "").trim();
             if (normalizedKey === "nodes" || normalizedKey === "links") {
               const nextKey = normalizedKey === "nodes" ? autocompleteSpecRef.current.node.entryStartKey : autocompleteSpecRef.current.link.entryStartKey;
               insertText = `${normalizedKey}:
-${" ".repeat(currentIndent + indentSize)}- ${nextKey}: `;
+${" ".repeat(indentSize)}- ${nextKey}: `;
             } else {
               insertText = `${normalizedKey}: `;
             }
@@ -461,7 +475,10 @@ ${" ".repeat(nextIndent)}`
         modelLines.push(typeof model2.getLineContent === "function" ? model2.getLineContent(i) : "");
       }
       const currentLineIndex = Math.max(0, Math.min(position.lineNumber - 1, modelLines.length - 1));
-      if (isRootBoundaryEmptyLine(modelLines, currentLineIndex)) {
+      const currentLineIndent = lineIndent(lineContent);
+      const currentSection = inferYamlSection(modelLines, currentLineIndex, currentLineIndent).section;
+      const shouldUseRootBoundaryHandling = isRootBoundaryEmptyLine(modelLines, currentLineIndex) && currentSection === "root";
+      if (shouldUseRootBoundaryHandling) {
         event.preventDefault?.();
         event.stopPropagation?.();
         if (position.column > 1) {
@@ -535,7 +552,7 @@ ${" ".repeat(nextIndent)}`
       triggerSuggestIfAvailable("mount");
     }
   }
-  return /* @__PURE__ */ jsx("div", { className: "editor-shell", "aria-label": "YAML editor", children: /* @__PURE__ */ jsx(
+  return /* @__PURE__ */ jsx("div", { className: "editor-shell", "aria-label": "YAML editor", style: DEFAULT_EDITOR_SHELL_STYLE, children: /* @__PURE__ */ jsx(
     Editor,
     {
       path: "graph.yaml",
