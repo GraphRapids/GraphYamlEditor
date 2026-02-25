@@ -1,26 +1,25 @@
 # GraphYamlEditor
 
-Reusable Monaco-based editor component for GraphRapids YAML syntax.
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
+[![CI](https://github.com/GraphRapids/GraphYamlEditor/actions/workflows/ci.yml/badge.svg)](https://github.com/GraphRapids/GraphYamlEditor/actions/workflows/ci.yml)
+[![Tests](https://github.com/GraphRapids/GraphYamlEditor/actions/workflows/test.yml/badge.svg)](https://github.com/GraphRapids/GraphYamlEditor/actions/workflows/test.yml)
+[![Secret Scan](https://github.com/GraphRapids/GraphYamlEditor/actions/workflows/gitleaks.yml/badge.svg)](https://github.com/GraphRapids/GraphYamlEditor/actions/workflows/gitleaks.yml)
 
-This repository contains the standalone `@graphrapids/graph-yaml-editor` package extracted from GraphEditor so it can be reused across web apps.
+Reusable React Monaco YAML editor component for graph authoring with context-aware autocomplete, diagnostics, and live authoring UX hooks.
 
-## What This Package Owns
+## Package
 
-- Monaco editor lifecycle (`@monaco-editor/react`) with a stable model
-- Completion + hover provider registration/disposal
-- Monaco marker updates from diagnostics
-- Keyboard-driven editor behavior (Tab/Enter/Backspace flows)
-- Suggest-widget trigger behavior (empty doc, root gaps, cursor/focus transitions)
-- E2E helper bridge (`window.__graphEditorE2E`) used by GraphEditor tests
+- Name: `@graphrapids/graph-yaml-editor`
+- Entry export: `dist/index.js`
+- Module format: ESM
 
-## What The Host App Owns
+## Capabilities
 
-This package is intentionally UI/editor-focused. The host app provides domain logic through props:
-
-- YAML parsing + schema validation
-- autocomplete context/suggestion computation
-- marker mapping helpers
-- metadata caches and refs
+- Stable Monaco model lifecycle (no editor/model recreation on rerenders)
+- Completion + hover provider registration and disposal
+- Keyboard interaction flows for Tab/Enter/Backspace authoring support
+- Marker rendering support for schema/syntax diagnostics
+- Root/missing-section suggest trigger behaviors used by GraphRapids apps
 
 ## Repository Layout
 
@@ -28,41 +27,42 @@ This package is intentionally UI/editor-focused. The host app provides domain lo
 src/index.js                                      # package export
 src/components/GraphYamlEditor/index.js           # component export
 src/components/GraphYamlEditor/GraphYamlEditor.jsx
-scripts/build.mjs                                 # esbuild bundle script
-dist/index.js                                     # built package output (generated)
+src/components/GraphYamlEditor/GraphYamlEditor.test.jsx
+src/test/setup.js                                 # test setup
+scripts/build.mjs                                 # package build script
+vitest.config.js                                  # test configuration
+.github/workflows/                                # CI, tests, release, secret scan
 ```
 
-## Requirements
+## Development
 
-- Node.js `>=20`
-- npm `>=10`
-
-Peer dependencies (provided by consuming app):
-
-- `react`
-- `react-dom`
-- `@monaco-editor/react`
-
-## Install And Build
+Install dependencies:
 
 ```bash
 npm install
+```
+
+Run tests:
+
+```bash
+npm run test
+```
+
+Build package output:
+
+```bash
 npm run build
 ```
 
-Create a local tarball for sibling-repo consumption:
+Pack local tarball for sibling repository use:
 
 ```bash
 npm pack
 ```
 
-This generates:
+## Consume From GraphEditor
 
-- `graphrapids-graph-yaml-editor-0.1.0.tgz`
-
-## Using In GraphEditor
-
-GraphEditor consumes this package from the tarball path:
+GraphEditor references the local tarball:
 
 ```json
 "@graphrapids/graph-yaml-editor": "file:../GraphYamlEditor/graphrapids-graph-yaml-editor-0.1.0.tgz"
@@ -70,37 +70,27 @@ GraphEditor consumes this package from the tarball path:
 
 After changes in this repo:
 
-1. Run `npm run build`
-2. Run `npm pack`
-3. In `GraphEditor`, run:
+1. `npm run build`
+2. `npm pack`
+3. In `GraphEditor`:
 
 ```bash
 npm install @graphrapids/graph-yaml-editor@file:../GraphYamlEditor/graphrapids-graph-yaml-editor-0.1.0.tgz --force
 ```
 
-## Component API
+## Governance
 
-Default export: `GraphYamlEditor`
+- Contribution guide: `CONTRIBUTING.md`
+- Security policy: `SECURITY.md`
+- Release process: `RELEASE.md`
+- Third-party notices: `THIRD_PARTY_NOTICES.md`
 
-Key prop groups:
+## Acknowledgements
 
-- `value`, `onChange`, `theme`
-- diagnostics: `schemaError`, `diagnostics`, `markerFromDiagnostic`
-- cached document refs: `documentStateRef`, `completionMetaCacheRef`, `emptyCompletionMetaCache`
-- autocomplete refs: `nodeTypeSuggestionsRef`, `linkTypeSuggestionsRef`, `autocompleteSpecRef`
-- host logic callbacks:
-  - `collectRootSectionPresence`
-  - `buildAutocompleteMetadata`
-  - `buildAutocompleteRuntimeFromMeta`
-  - `getYamlAutocompleteSuggestions`
-  - `getYamlAutocompleteContext`
-  - `buildCompletionDocumentation`
-  - `inferYamlSection`
-  - `lineIndent`
-  - `isRootBoundaryEmptyLine`
-  - `computeIndentBackspaceDeleteCount`
-- formatting: `indentSize`
+- [React](https://react.dev/) for the component runtime.
+- [Monaco Editor](https://microsoft.github.io/monaco-editor/) and [`@monaco-editor/react`](https://github.com/suren-atoyan/monaco-react) for the editor integration.
+- The GraphRapids maintainers and contributors for shaping the authoring behavior contract used by this component.
 
 ## License
 
-Apache-2.0 (see `LICENSE`).
+Apache License 2.0 (`LICENSE`).
