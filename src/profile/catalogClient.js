@@ -23,20 +23,30 @@ export async function fetchProfileCatalog({
     throw new Error('No fetch implementation is available for profile catalog loading.');
   }
 
-  const url = new URL(`${normalizedBaseUrl}/v1/autocomplete/catalog`);
-  url.searchParams.set('profile_id', profileId);
-  url.searchParams.set('stage', stage);
-  if (Number.isFinite(profileVersion) && Number(profileVersion) > 0) {
-    url.searchParams.set('profile_version', String(Number(profileVersion)));
+  function buildCatalogUrl(versionPrefix = 'v2') {
+    const url = new URL(`${normalizedBaseUrl}/${versionPrefix}/autocomplete/catalog`);
+    url.searchParams.set('profile_id', profileId);
+    url.searchParams.set('stage', stage);
+    if (Number.isFinite(profileVersion) && Number(profileVersion) > 0) {
+      url.searchParams.set('profile_version', String(Number(profileVersion)));
+    }
+    return url;
   }
 
-  const response = await fetchImpl(url.toString(), {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
-    },
-    signal,
-  });
+  async function requestCatalog(url) {
+    return fetchImpl(url.toString(), {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      signal,
+    });
+  }
+
+  let response = await requestCatalog(buildCatalogUrl('v2'));
+  if (response.status === 404) {
+    response = await requestCatalog(buildCatalogUrl('v1'));
+  }
 
   if (!response.ok) {
     let detail = '';

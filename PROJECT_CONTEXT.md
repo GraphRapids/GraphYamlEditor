@@ -60,7 +60,7 @@ GraphEditor consumes local tarball builds:
 GraphYamlEditor Storybook/e2e harness consumes autocomplete core package:
 - `file:../GraphAutocompleteCore/graphrapids-graph-autocomplete-core-0.1.0.tgz`
 GraphYamlEditor can consume runtime catalogs from GraphAPI:
-- `GET /v1/autocomplete/catalog?profile_id=...`
+- `GET /v2/autocomplete/catalog?profile_id=...` (with v1 fallback when v2 is unavailable)
 
 After GraphYamlEditor changes:
 1. `npm run build`

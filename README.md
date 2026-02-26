@@ -20,7 +20,7 @@ Reusable React Monaco YAML editor component for graph authoring with context-awa
 - Monaco adapter for keyboard interaction flows (Tab/Enter/Backspace) planned by `@graphrapids/graph-autocomplete-core`
 - Marker rendering support for schema/syntax diagnostics
 - Root/missing-section suggest trigger behaviors used by GraphRapids apps
-- Profile-driven catalog integration via GraphAPI (`/v1/autocomplete/catalog`)
+- Profile-driven catalog integration via GraphAPI (`/v2/autocomplete/catalog` with v1 fallback)
 - Non-blocking warning/fallback behavior when profile API is unavailable
 
 ## Repository Layout
