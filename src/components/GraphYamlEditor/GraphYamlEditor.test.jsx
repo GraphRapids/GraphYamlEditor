@@ -185,26 +185,41 @@ function createDefaultProps(overrides = {}) {
       endLineNumber: 1,
       endColumn: 2,
     })),
-    collectRootSectionPresence: () => new Set(),
-    buildAutocompleteMetadata: (text) => ({
-      lines: text.split('\n'),
-      entities: { nodeNames: [], portsByNode: new Map() },
-      rootSectionPresence: new Set(),
+    resolveAutocompleteMeta: ({ text, version }) => {
+      const meta = {
+        lines: text.split('\n'),
+        entities: { nodeNames: [], portsByNode: new Map() },
+        rootSectionPresence: new Set(),
+      };
+      return {
+        meta,
+        cache: { version, text, meta },
+      };
+    },
+    resolveAutocompleteAtPosition: () => ({
+      runtime: {
+        context: { kind: 'none', section: 'root', prefix: '' },
+        objectKeys: [],
+        itemContextKeys: [],
+        canContinueItemContext: false,
+        entities: { nodeNames: [], portsByNode: new Map() },
+      },
+      suggestions: [],
     }),
-    buildAutocompleteRuntimeFromMeta: () => ({
-      context: { kind: 'none', section: 'root', prefix: '' },
-      objectKeys: [],
-      itemContextKeys: [],
-      canContinueItemContext: false,
-      entities: { nodeNames: [], portsByNode: new Map() },
+    resolveCompletionCommand: () => ({
+      keyToken: '',
+      shouldTriggerSuggest: false,
+      title: '',
     }),
-    getYamlAutocompleteSuggestions: () => [],
-    lineIndent: (line) => (String(line).match(/^(\s*)/)?.[1].length || 0),
-    inferYamlSection: () => ({ section: 'nodes', sectionIndent: 0 }),
-    buildCompletionDocumentation: () => '',
-    getYamlAutocompleteContext: () => ({ kind: 'none', section: 'root', prefix: '' }),
-    isRootBoundaryEmptyLine: () => false,
-    computeIndentBackspaceDeleteCount: () => 0,
+    planEnterKeyAction: () => ({ shouldHandle: false, editId: '', insertText: '', triggerSource: 'enter' }),
+    planBackspaceKeyAction: () => ({
+      shouldHandle: false,
+      editId: '',
+      deleteStartColumn: 1,
+      deleteEndColumn: 1,
+      triggerSource: 'backspace',
+    }),
+    buildCompletionDocs: () => '',
     indentSize: 2,
     profileId: '',
     profileApiBaseUrl: '',
@@ -313,7 +328,13 @@ describe('GraphYamlEditor', () => {
   it('applies indentation-aware backspace edit and opens next suggestions', async () => {
     const props = createDefaultProps({
       value: 'nodes:\n  - name: A\n    ',
-      computeIndentBackspaceDeleteCount: () => 2,
+      planBackspaceKeyAction: () => ({
+        shouldHandle: true,
+        editId: 'indent-backspace',
+        deleteStartColumn: 3,
+        deleteEndColumn: 5,
+        triggerSource: 'backspace',
+      }),
     });
     state.modelValue = props.value;
     state.selection = createSelection(3, 5);
@@ -345,14 +366,16 @@ describe('GraphYamlEditor', () => {
   it('builds nested nodes insertion for node key context', () => {
     const props = createDefaultProps({
       value: 'nodes:\n  - name: subgraph1\n    no',
-      buildAutocompleteRuntimeFromMeta: () => ({
-        context: { kind: 'key', section: 'nodes', prefix: 'no' },
-        objectKeys: [],
-        itemContextKeys: [],
-        canContinueItemContext: false,
-        entities: { nodeNames: [], portsByNode: new Map() },
+      resolveAutocompleteAtPosition: () => ({
+        runtime: {
+          context: { kind: 'key', section: 'nodes', prefix: 'no' },
+          objectKeys: [],
+          itemContextKeys: [],
+          canContinueItemContext: false,
+          entities: { nodeNames: [], portsByNode: new Map() },
+        },
+        suggestions: ['nodes'],
       }),
-      getYamlAutocompleteSuggestions: () => ['nodes'],
     });
     state.modelValue = props.value;
     render(<GraphYamlEditor {...props} />);
@@ -376,14 +399,16 @@ describe('GraphYamlEditor', () => {
   it('builds nested nodes insertion for item-key continuation context', () => {
     const props = createDefaultProps({
       value: 'nodes:\n  - name: node-1\n    no',
-      buildAutocompleteRuntimeFromMeta: () => ({
-        context: { kind: 'itemKey', section: 'nodes', prefix: 'no' },
-        objectKeys: [],
-        itemContextKeys: ['name'],
-        canContinueItemContext: true,
-        entities: { nodeNames: ['node-1'], portsByNode: new Map() },
+      resolveAutocompleteAtPosition: () => ({
+        runtime: {
+          context: { kind: 'itemKey', section: 'nodes', prefix: 'no' },
+          objectKeys: [],
+          itemContextKeys: ['name'],
+          canContinueItemContext: true,
+          entities: { nodeNames: ['node-1'], portsByNode: new Map() },
+        },
+        suggestions: ['  nodes'],
       }),
-      getYamlAutocompleteSuggestions: () => ['  nodes'],
     });
     state.modelValue = props.value;
     render(<GraphYamlEditor {...props} />);
@@ -407,15 +432,16 @@ describe('GraphYamlEditor', () => {
   it('dedents collection-key continuation at boundary lines in nested node sections', () => {
     const props = createDefaultProps({
       value: 'nodes:\n  - name: subgraph\n    nodes:\n      - name: subnode-1\n      - name: subnode-2\n      ',
-      inferYamlSection: () => ({ section: 'nodes', sectionIndent: 4 }),
-      buildAutocompleteRuntimeFromMeta: () => ({
-        context: { kind: 'itemKey', section: 'nodes', prefix: '' },
-        objectKeys: [],
-        itemContextKeys: ['name'],
-        canContinueItemContext: true,
-        entities: { nodeNames: [], portsByNode: new Map() },
+      resolveAutocompleteAtPosition: () => ({
+        runtime: {
+          context: { kind: 'itemKey', section: 'nodes', prefix: '' },
+          objectKeys: [],
+          itemContextKeys: ['name'],
+          canContinueItemContext: true,
+          entities: { nodeNames: [], portsByNode: new Map() },
+        },
+        suggestions: ['  links'],
       }),
-      getYamlAutocompleteSuggestions: () => ['  links'],
     });
     state.modelValue = props.value;
     render(<GraphYamlEditor {...props} />);
@@ -439,14 +465,21 @@ describe('GraphYamlEditor', () => {
   it('inserts type values as snippets and triggers next-step suggestions', () => {
     const props = createDefaultProps({
       value: 'nodes:\n  - name: A\n    type: ro',
-      buildAutocompleteRuntimeFromMeta: () => ({
-        context: { kind: 'nodeTypeValue', section: 'nodes', prefix: 'ro' },
-        objectKeys: [],
-        itemContextKeys: [],
-        canContinueItemContext: false,
-        entities: { nodeNames: [], portsByNode: new Map() },
+      resolveAutocompleteAtPosition: () => ({
+        runtime: {
+          context: { kind: 'nodeTypeValue', section: 'nodes', prefix: 'ro' },
+          objectKeys: [],
+          itemContextKeys: [],
+          canContinueItemContext: false,
+          entities: { nodeNames: [], portsByNode: new Map() },
+        },
+        suggestions: ['router'],
       }),
-      getYamlAutocompleteSuggestions: () => ['router'],
+      resolveCompletionCommand: () => ({
+        keyToken: 'router',
+        shouldTriggerSuggest: true,
+        title: 'Trigger Next Step Suggestions',
+      }),
     });
     state.modelValue = props.value;
     render(<GraphYamlEditor {...props} />);

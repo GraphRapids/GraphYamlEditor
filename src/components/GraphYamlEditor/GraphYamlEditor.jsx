@@ -1,7 +1,16 @@
 import React from 'react';
 import { useEffect, useRef } from 'react';
 import MonacoEditorReact from '@monaco-editor/react';
-import { EMPTY_PROFILE_CATALOG, buildYamlSuggestionInsertText } from '@graphrapids/graph-autocomplete-core';
+import {
+  EMPTY_PROFILE_CATALOG,
+  buildCompletionDocumentation,
+  buildYamlSuggestionInsertText,
+  planYamlBackspaceKeyAction,
+  planYamlEnterKeyAction,
+  resolveAutocompleteMetadataCache,
+  resolveCompletionCommandBehavior,
+  resolveYamlAutocompleteAtPosition,
+} from '@graphrapids/graph-autocomplete-core';
 
 import { fetchProfileCatalog } from '../../profile/catalogClient.js';
 import { useProfileCatalog } from '../../profile/useProfileCatalog.js';
@@ -44,17 +53,13 @@ export default function GraphYamlEditor({
   linkTypeSuggestionsRef,
   autocompleteSpecRef,
   markerFromDiagnostic,
-  collectRootSectionPresence,
-  buildAutocompleteMetadata,
-  buildAutocompleteRuntimeFromMeta,
-  getYamlAutocompleteSuggestions,
-  lineIndent,
-  inferYamlSection,
-  buildCompletionDocumentation,
+  resolveAutocompleteMeta = resolveAutocompleteMetadataCache,
+  resolveAutocompleteAtPosition = resolveYamlAutocompleteAtPosition,
+  resolveCompletionCommand = resolveCompletionCommandBehavior,
+  planEnterKeyAction = planYamlEnterKeyAction,
+  planBackspaceKeyAction = planYamlBackspaceKeyAction,
+  buildCompletionDocs = buildCompletionDocumentation,
   buildCompletionInsertText = buildYamlSuggestionInsertText,
-  getYamlAutocompleteContext,
-  isRootBoundaryEmptyLine,
-  computeIndentBackspaceDeleteCount,
   indentSize,
   profileId = '',
   profileApiBaseUrl = '',
@@ -181,22 +186,13 @@ export default function GraphYamlEditor({
   function getCompletionMeta(model) {
     const text = model.getValue();
     const version = typeof model.getVersionId === 'function' ? model.getVersionId() : null;
-    const cache = completionMetaCacheRef.current;
-    if (cache.version === version && cache.text === text) {
-      return cache.meta;
-    }
-
-    const latestDocumentState = documentStateRef.current;
-    const meta =
-      latestDocumentState && latestDocumentState.text === text
-        ? {
-            lines: text.split('\n'),
-            entities: latestDocumentState.entities,
-            rootSectionPresence: collectRootSectionPresence(text.split('\n'), latestDocumentState.parsedGraph),
-          }
-        : buildAutocompleteMetadata(text);
-
-    completionMetaCacheRef.current = { version, text, meta };
+    const { meta, cache } = resolveAutocompleteMeta({
+      text,
+      version,
+      cache: completionMetaCacheRef.current,
+      latestDocumentState: documentStateRef.current,
+    });
+    completionMetaCacheRef.current = cache;
     return meta;
   }
 
@@ -250,17 +246,15 @@ export default function GraphYamlEditor({
 
     function resolveSuggestionsForPosition(model, position) {
       if (!model || !position) {
-        return [];
+        return { runtime: null, suggestions: [] };
       }
       const meta = getCompletionMeta(model);
       const text = model.getValue();
-      const runtime = buildAutocompleteRuntimeFromMeta(text, position.lineNumber, position.column, meta);
-      return getYamlAutocompleteSuggestions(runtime.context, {
-        objectKeys: runtime.objectKeys,
-        itemContextKeys: runtime.itemContextKeys,
-        canContinueItemContext: runtime.canContinueItemContext,
-        entities: runtime.entities,
-        rootSectionPresence: meta.rootSectionPresence,
+      return resolveAutocompleteAtPosition({
+        text,
+        lineNumber: position.lineNumber,
+        column: position.column,
+        meta,
         profileCatalog: activeProfileCatalogRef.current,
         nodeTypeSuggestions: nodeTypeSuggestionsRef.current,
         linkTypeSuggestions: linkTypeSuggestionsRef.current,
@@ -276,7 +270,7 @@ export default function GraphYamlEditor({
         editor.trigger(source, 'editor.action.triggerSuggest', {});
         return;
       }
-      const suggestions = resolveSuggestionsForPosition(model, position);
+      const { suggestions } = resolveSuggestionsForPosition(model, position);
       if (suggestions.length > 0) {
         editor.trigger(source, 'editor.action.triggerSuggest', {});
         return;
@@ -297,23 +291,10 @@ export default function GraphYamlEditor({
         return;
       }
 
-      const meta = getCompletionMeta(model);
-      const runtime = buildAutocompleteRuntimeFromMeta(text, position.lineNumber, position.column, meta);
+      const { runtime, suggestions } = resolveSuggestionsForPosition(model, position);
       if (runtime.context.kind !== 'rootKey' && runtime.context.kind !== 'rootItemKey') {
         return;
       }
-
-      const suggestions = getYamlAutocompleteSuggestions(runtime.context, {
-        objectKeys: runtime.objectKeys,
-        itemContextKeys: runtime.itemContextKeys,
-        canContinueItemContext: runtime.canContinueItemContext,
-        entities: runtime.entities,
-        rootSectionPresence: meta.rootSectionPresence,
-        profileCatalog: activeProfileCatalogRef.current,
-        nodeTypeSuggestions: nodeTypeSuggestionsRef.current,
-        linkTypeSuggestions: linkTypeSuggestionsRef.current,
-        spec: autocompleteSpecRef.current,
-      });
 
       if (suggestions.length > 0) {
         editor.trigger(source, 'editor.action.triggerSuggest', {});
@@ -328,19 +309,17 @@ export default function GraphYamlEditor({
       provideCompletionItems(model, position) {
         const meta = getCompletionMeta(model);
         const text = model.getValue();
-        const runtime = buildAutocompleteRuntimeFromMeta(text, position.lineNumber, position.column, meta);
-        const context = runtime.context;
-        const suggestions = getYamlAutocompleteSuggestions(context, {
-          objectKeys: runtime.objectKeys,
-          itemContextKeys: runtime.itemContextKeys,
-          canContinueItemContext: runtime.canContinueItemContext,
-          entities: runtime.entities,
-          rootSectionPresence: meta.rootSectionPresence,
+        const { runtime, suggestions } = resolveAutocompleteAtPosition({
+          text,
+          lineNumber: position.lineNumber,
+          column: position.column,
+          meta,
           profileCatalog: activeProfileCatalogRef.current,
           nodeTypeSuggestions: nodeTypeSuggestionsRef.current,
           linkTypeSuggestions: linkTypeSuggestionsRef.current,
           spec: autocompleteSpecRef.current,
         });
+        const context = runtime.context;
 
         const completionKinds = monaco.languages.CompletionItemKind || {};
         const insertTextRules = monaco.languages.CompletionItemInsertTextRule || {};
@@ -358,10 +337,6 @@ export default function GraphYamlEditor({
           let itemRange = range;
           let insertText;
           let insertTextRule;
-          const normalizedItem = String(item || '');
-          const trimmedItem = normalizedItem.trim();
-          const suggestionKey = trimmedItem.replace(/^\-\s+/, '').trim();
-          const normalizedSuggestionKey = suggestionKey.replace(/:\s*$/, '');
           if (context.kind === 'rootItemKey' || context.kind === 'itemKey') {
             itemRange = new monaco.Range(position.lineNumber, 1, position.lineNumber, position.column);
           } else if (context.kind === 'endpointValue' && item === ':') {
@@ -384,15 +359,8 @@ export default function GraphYamlEditor({
 
           const isValueContext =
             context.kind === 'nodeTypeValue' || context.kind === 'linkTypeValue' || context.kind === 'endpointValue';
-          const isKeyLikeContext = context.kind === 'key' || context.kind === 'itemKey';
-          const isTypeValueContext = context.kind === 'nodeTypeValue' || context.kind === 'linkTypeValue';
-          const isEndpointValueContext = context.kind === 'endpointValue';
-          const keyToken =
-            context.kind === 'itemKey' || context.kind === 'rootItemKey' ? normalizedSuggestionKey : item;
-          const shouldTriggerSuggest =
-            (isKeyLikeContext && ['type', 'from', 'to'].includes(keyToken)) ||
-            isTypeValueContext ||
-            (isEndpointValueContext && item !== ':');
+          const completionBehavior = resolveCompletionCommand(context, item);
+          const keyToken = completionBehavior.keyToken;
 
           return {
             label: item,
@@ -401,16 +369,12 @@ export default function GraphYamlEditor({
             insertText,
             insertTextRules: insertTextRule,
             sortText: `${String(idx).padStart(3, '0')}-${item}`,
-            detail: isKeyLikeContext || context.kind === 'rootKey' ? 'Next graph step' : 'Graph value',
-            documentation: buildCompletionDocumentation(keyToken),
-            command: shouldTriggerSuggest
+            detail: context.kind === 'key' || context.kind === 'itemKey' || context.kind === 'rootKey' ? 'Next graph step' : 'Graph value',
+            documentation: buildCompletionDocs(keyToken),
+            command: completionBehavior.shouldTriggerSuggest
               ? {
                   id: 'editor.action.triggerSuggest',
-                  title: isTypeValueContext
-                    ? 'Trigger Next Step Suggestions'
-                    : keyToken === 'type'
-                      ? 'Trigger Type Suggestions'
-                      : 'Trigger Endpoint Suggestions',
+                  title: completionBehavior.title,
                 }
               : undefined,
           };
@@ -431,7 +395,7 @@ export default function GraphYamlEditor({
             return null;
           }
           const key = word.word;
-          const docs = buildCompletionDocumentation(key);
+          const docs = buildCompletionDocs(key);
           if (!docs) {
             return null;
           }
@@ -461,68 +425,23 @@ export default function GraphYamlEditor({
         const position =
           selection?.getPosition?.() || selection?.getStartPosition?.() || editor.getPosition?.();
         if (selection?.isEmpty?.() && model && position) {
-          const text = model.getValue();
-          const context = getYamlAutocompleteContext(text, position.lineNumber, position.column);
-          const currentLine = model.getLineContent(position.lineNumber) || '';
-          const endpointValue = String(context.prefix || '').trim();
-          const valueHasColon = endpointValue.includes(':');
-          const portPart = valueHasColon ? endpointValue.split(':').slice(1).join(':').trim() : '';
-          const canAdvanceEndpoint = endpointValue.length > 0 && (!valueHasColon || portPart.length > 0);
-          if (
-            context.kind === 'endpointValue' &&
-            context.section === 'links' &&
-            (context.endpoint === 'from' || context.endpoint === 'to') &&
-            canAdvanceEndpoint
-          ) {
-            const baseIndent = lineIndent(currentLine);
-            const nextIndent =
-              context.endpoint === 'from'
-                ? /^\s*-\s*/.test(currentLine)
-                  ? baseIndent + indentSize
-                  : baseIndent
-                : Math.max(0, baseIndent - indentSize);
+          const enterAction = planEnterKeyAction({
+            text: model.getValue(),
+            lineNumber: position.lineNumber,
+            column: position.column,
+            indentSize,
+          });
+          if (enterAction.shouldHandle) {
             event.preventDefault?.();
             event.stopPropagation?.();
-            if (context.endpoint === 'from') {
-              editor.executeEdits?.('link-from-next-to', [
-                {
-                  range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
-                  text: `\n${' '.repeat(nextIndent)}to: `,
-                },
-              ]);
-            } else {
-              editor.executeEdits?.('link-to-next-step', [
-                {
-                  range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
-                  text: `\n${' '.repeat(nextIndent)}`,
-                },
-              ]);
-            }
-            window.setTimeout(() => {
-              triggerSuggestIfAvailable('enter-next-to');
-            }, 0);
-            return;
-          }
-
-          const trimmedCurrentLine = currentLine.trim();
-          const linkLabelValueMatch = trimmedCurrentLine.match(/^(?:-\s*)?label:\s*(.+)$/);
-          if (
-            context.section === 'links' &&
-            linkLabelValueMatch &&
-            String(linkLabelValueMatch[1] || '').trim().length > 0
-          ) {
-            const baseIndent = lineIndent(currentLine);
-            const nextIndent = /^\s*-\s*/.test(currentLine) ? baseIndent : Math.max(indentSize, baseIndent - indentSize);
-            event.preventDefault?.();
-            event.stopPropagation?.();
-            editor.executeEdits?.('link-label-next-step', [
+            editor.executeEdits?.(enterAction.editId, [
               {
                 range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
-                text: `\n${' '.repeat(nextIndent)}`,
+                text: enterAction.insertText,
               },
             ]);
             window.setTimeout(() => {
-              triggerSuggestIfAvailable('enter-after-label');
+              triggerSuggestIfAvailable(enterAction.triggerSource);
             }, 0);
             return;
           }
@@ -554,57 +473,35 @@ export default function GraphYamlEditor({
         return;
       }
 
-      const lineContent = model.getLineContent(position.lineNumber);
-      const modelLineCount =
-        typeof model.getLineCount === 'function'
-          ? Math.max(1, model.getLineCount())
-          : Math.max(1, model.getValue().split('\n').length);
-      const modelLines = [];
-      for (let i = 1; i <= modelLineCount; i += 1) {
-        modelLines.push(typeof model.getLineContent === 'function' ? model.getLineContent(i) : '');
-      }
-      const currentLineIndex = Math.max(0, Math.min(position.lineNumber - 1, modelLines.length - 1));
-      const currentLineIndent = lineIndent(lineContent);
-      const currentSection = inferYamlSection(modelLines, currentLineIndex, currentLineIndent).section;
-      const shouldUseRootBoundaryHandling =
-        isRootBoundaryEmptyLine(modelLines, currentLineIndex) && currentSection === 'root';
-      if (shouldUseRootBoundaryHandling) {
-        event.preventDefault?.();
-        event.stopPropagation?.();
-        if (position.column > 1) {
-          editor.executeEdits?.('root-boundary-backspace', [
-            {
-              range: new monaco.Range(position.lineNumber, 1, position.lineNumber, position.column),
-              text: '',
-            },
-          ]);
-        }
-        window.setTimeout(() => {
-          triggerSuggestIfAvailable('backspace-root-boundary');
-        }, 0);
-        return;
-      }
-      const deleteCount = computeIndentBackspaceDeleteCount(lineContent, position.column, indentSize);
-      if (deleteCount <= 0) {
+      const backspaceAction = planBackspaceKeyAction({
+        text: model.getValue(),
+        lineNumber: position.lineNumber,
+        column: position.column,
+        indentSize,
+      });
+      if (!backspaceAction.shouldHandle) {
         return;
       }
 
       event.preventDefault?.();
       event.stopPropagation?.();
-      editor.executeEdits?.('indent-backspace', [
-        {
-          range: new monaco.Range(
-            position.lineNumber,
-            position.column - deleteCount,
-            position.lineNumber,
-            position.column
-          ),
-          text: '',
-        },
-      ]);
+      if (backspaceAction.deleteEndColumn > backspaceAction.deleteStartColumn) {
+        editor.executeEdits?.(backspaceAction.editId, [
+          {
+            range: new monaco.Range(
+              position.lineNumber,
+              backspaceAction.deleteStartColumn,
+              position.lineNumber,
+              backspaceAction.deleteEndColumn
+            ),
+            text: '',
+          },
+        ]);
+      }
       window.setTimeout(() => {
-        triggerSuggestIfAvailable('backspace');
+        triggerSuggestIfAvailable(backspaceAction.triggerSource);
       }, 0);
+      return;
     });
 
     focusSuggestListenerRef.current = editor.onDidFocusEditorText?.(() => {

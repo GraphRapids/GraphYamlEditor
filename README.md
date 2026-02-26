@@ -17,7 +17,7 @@ Reusable React Monaco YAML editor component for graph authoring with context-awa
 
 - Stable Monaco model lifecycle (no editor/model recreation on rerenders)
 - Completion + hover provider registration and disposal
-- Keyboard interaction flows for Tab/Enter/Backspace authoring support
+- Monaco adapter for keyboard interaction flows (Tab/Enter/Backspace) planned by `@graphrapids/graph-autocomplete-core`
 - Marker rendering support for schema/syntax diagnostics
 - Root/missing-section suggest trigger behaviors used by GraphRapids apps
 - Profile-driven catalog integration via GraphAPI (`/v1/autocomplete/catalog`)
