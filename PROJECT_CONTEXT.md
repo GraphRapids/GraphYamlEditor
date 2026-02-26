@@ -8,6 +8,7 @@ GraphYamlEditor is a reusable React + Monaco component package for graph YAML au
 - Provide deterministic autocomplete behavior from the behavior template.
 - Surface syntax/schema diagnostics clearly in-editor.
 - Remain reusable across GraphRapids applications.
+- Resolve autocomplete type catalogs from canonical GraphAPI profiles when configured.
 
 ## Package Snapshot
 - Package name: `@graphrapids/graph-yaml-editor`
@@ -25,6 +26,8 @@ Main responsibilities:
 - Register completion/hover providers once and dispose cleanly.
 - Trigger suggestions at expected flow points (including empty/root scenarios).
 - Keep key and value suggestions aligned with schema + behavior rules.
+- Fetch/cache profile catalogs by active `profileId` without per-keystroke API calls.
+- Degrade gracefully when profile API is unavailable (non-blocking warning + editor continuity).
 
 ## Behavior Contract Source
 - `AUTOCOMPLETE_BEHAVIOR_TEMPLATE.md` in GraphEditor is the contract reference used for scenario alignment.
@@ -56,6 +59,8 @@ GraphEditor consumes local tarball builds:
 - `file:../GraphYamlEditor/graphrapids-graph-yaml-editor-0.1.0.tgz`
 GraphYamlEditor Storybook/e2e harness consumes autocomplete core package:
 - `file:../GraphAutocompleteCore/graphrapids-graph-autocomplete-core-0.1.0.tgz`
+GraphYamlEditor can consume runtime catalogs from GraphAPI:
+- `GET /v1/autocomplete/catalog?profile_id=...`
 
 After GraphYamlEditor changes:
 1. `npm run build`
@@ -65,7 +70,7 @@ After GraphYamlEditor changes:
 ## Open Decisions / TODO
 - [ ] Extract autocomplete engine from component file into dedicated module.
 - [x] Split autocomplete engine into a separate reusable repository/package (editor-agnostic core + Monaco adapter).
-- [ ] Replace hardcoded node/link `type` suggestion lists with schema/registry-driven values (after repo split).
+- [x] Replace hardcoded node/link `type` suggestion lists with profile-driven catalogs (GraphAPI).
 - [ ] Add scenario-row to test-case traceability table.
 - [ ] Expand diagnostics mapping for domain validation locations.
 

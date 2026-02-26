@@ -1,6 +1,10 @@
 import React from 'react';
 import { useEffect, useRef } from 'react';
 import MonacoEditorReact from '@monaco-editor/react';
+import { EMPTY_PROFILE_CATALOG } from '@graphrapids/graph-autocomplete-core';
+
+import { fetchProfileCatalog } from '../../profile/catalogClient.js';
+import { useProfileCatalog } from '../../profile/useProfileCatalog.js';
 
 const Editor = MonacoEditorReact?.default || MonacoEditorReact;
 
@@ -51,6 +55,14 @@ export default function GraphYamlEditor({
   isRootBoundaryEmptyLine,
   computeIndentBackspaceDeleteCount,
   indentSize,
+  profileId = '',
+  profileApiBaseUrl = '',
+  profileStage = 'published',
+  profileVersion = null,
+  profileChecksum = '',
+  profileCatalogCacheRef = null,
+  profileCatalogResolver = fetchProfileCatalog,
+  onProfileCatalogWarning = null,
 }) {
   const monacoRef = useRef(null);
   const editorRef = useRef(null);
@@ -61,6 +73,38 @@ export default function GraphYamlEditor({
   const focusSuggestListenerRef = useRef(null);
   const modelContentListenerRef = useRef(null);
   const cursorSuggestListenerRef = useRef(null);
+  const internalProfileCatalogCacheRef = useRef(new Map());
+  const activeProfileCatalogRef = useRef(EMPTY_PROFILE_CATALOG);
+
+  const profileCatalogCache = profileCatalogCacheRef || internalProfileCatalogCacheRef;
+  const { catalog: resolvedProfileCatalog, warning: profileCatalogWarning } = useProfileCatalog({
+    profileId,
+    profileApiBaseUrl,
+    profileStage,
+    profileVersionHint: profileVersion,
+    profileChecksumHint: profileChecksum,
+    cacheRef: profileCatalogCache,
+    resolver: profileCatalogResolver,
+  });
+
+  useEffect(() => {
+    if (!resolvedProfileCatalog?.profileId) {
+      return;
+    }
+    activeProfileCatalogRef.current = resolvedProfileCatalog;
+    if (resolvedProfileCatalog.nodeTypes.length > 0) {
+      nodeTypeSuggestionsRef.current = resolvedProfileCatalog.nodeTypes;
+    }
+    if (resolvedProfileCatalog.linkTypes.length > 0) {
+      linkTypeSuggestionsRef.current = resolvedProfileCatalog.linkTypes;
+    }
+  }, [resolvedProfileCatalog, nodeTypeSuggestionsRef, linkTypeSuggestionsRef]);
+
+  useEffect(() => {
+    if (typeof onProfileCatalogWarning === 'function') {
+      onProfileCatalogWarning(profileCatalogWarning);
+    }
+  }, [onProfileCatalogWarning, profileCatalogWarning]);
 
   useEffect(() => {
     return () => {
@@ -216,6 +260,7 @@ export default function GraphYamlEditor({
         canContinueItemContext: runtime.canContinueItemContext,
         entities: runtime.entities,
         rootSectionPresence: meta.rootSectionPresence,
+        profileCatalog: activeProfileCatalogRef.current,
         nodeTypeSuggestions: nodeTypeSuggestionsRef.current,
         linkTypeSuggestions: linkTypeSuggestionsRef.current,
         spec: autocompleteSpecRef.current,
@@ -263,6 +308,7 @@ export default function GraphYamlEditor({
         canContinueItemContext: runtime.canContinueItemContext,
         entities: runtime.entities,
         rootSectionPresence: meta.rootSectionPresence,
+        profileCatalog: activeProfileCatalogRef.current,
         nodeTypeSuggestions: nodeTypeSuggestionsRef.current,
         linkTypeSuggestions: linkTypeSuggestionsRef.current,
         spec: autocompleteSpecRef.current,
@@ -289,6 +335,7 @@ export default function GraphYamlEditor({
           canContinueItemContext: runtime.canContinueItemContext,
           entities: runtime.entities,
           rootSectionPresence: meta.rootSectionPresence,
+          profileCatalog: activeProfileCatalogRef.current,
           nodeTypeSuggestions: nodeTypeSuggestionsRef.current,
           linkTypeSuggestions: linkTypeSuggestionsRef.current,
           spec: autocompleteSpecRef.current,
@@ -643,6 +690,21 @@ export default function GraphYamlEditor({
 
   return (
     <div className="editor-shell" aria-label="YAML editor" style={DEFAULT_EDITOR_SHELL_STYLE}>
+      {profileCatalogWarning ? (
+        <div
+          role="status"
+          data-testid="profile-catalog-warning"
+          style={{
+            padding: '8px 10px',
+            borderBottom: '1px solid #f2cc60',
+            backgroundColor: '#fff8dd',
+            color: '#6f4e00',
+            fontSize: 12,
+          }}
+        >
+          {profileCatalogWarning}
+        </div>
+      ) : null}
       <Editor
         path="graph.yaml"
         keepCurrentModel

@@ -2,10 +2,18 @@ import { expect, test, type Page } from '@playwright/test';
 import YAML from 'js-yaml';
 
 const HARNESS_STORY_URL = '/iframe.html?id=components-graphyamleditor--autocomplete-harness&viewMode=story';
+const PROFILE_HARNESS_STORY_URL =
+  '/iframe.html?id=components-graphyamleditor--profile-catalog-harness&viewMode=story';
 
 async function waitForEditorApi(page: Page) {
   await expect
     .poll(async () => page.evaluate(() => Boolean((window as any).__graphEditorE2E)))
+    .toBe(true);
+}
+
+async function waitForProfileApi(page: Page) {
+  await expect
+    .poll(async () => page.evaluate(() => Boolean((window as any).__graphProfileE2E)))
     .toBe(true);
 }
 
@@ -164,4 +172,35 @@ test('backspace on nested trailing item line dedents one level and opens item su
 
   const value = await editorValue(page);
   expect(() => YAML.load(value)).not.toThrow();
+});
+
+test('profile switch updates type suggestions and failure fallback remains non-blocking', async ({ page }) => {
+  await page.goto(PROFILE_HARNESS_STORY_URL);
+  await waitForEditorApi(page);
+  await waitForProfileApi(page);
+
+  await setEditorState(page, 'nodes:\n  - name: A\n    type: ', 3, 11);
+  await triggerSuggest(page);
+  await expect.poll(async () => suggestionLabels(page)).toEqual(['router', 'switch']);
+
+  await page.evaluate(() => {
+    const api = (window as any).__graphProfileE2E;
+    api.setProfileId('beta');
+  });
+
+  await setEditorState(page, 'nodes:\n  - name: A\n    type: ', 3, 11);
+  await triggerSuggest(page);
+  await expect.poll(async () => suggestionLabels(page)).toEqual(['gateway', 'firewall']);
+
+  await page.evaluate(() => {
+    const api = (window as any).__graphProfileE2E;
+    api.setResolverMode('fail');
+    api.setProfileId('broken');
+  });
+
+  await expect(page.getByTestId('profile-catalog-warning')).toContainText('broken');
+
+  await setEditorState(page, 'nodes:\n  - name: A\n    type: ', 3, 11);
+  await pressEditorKey(page, 'A');
+  await expect.poll(async () => editorValue(page)).toContain('type: A');
 });

@@ -14,6 +14,35 @@ Use this file as a running log between work sessions.
 
 ## Current
 
+### 2026-02-26
+- Summary: Added GraphAPI profile catalog integration with cache invalidation semantics and graceful fallback behavior.
+- Changes:
+  - Added `fetchProfileCatalog` API client and `useProfileCatalog` hook.
+  - Added profile-aware props to `GraphYamlEditor` (`profileId`, `profileApiBaseUrl`, `profileVersion`, `profileChecksum`, etc.).
+  - Added non-blocking profile warning UI and callback for API failures.
+  - Added integration tests for profile switching/cache behavior and fallback.
+  - Added Playwright e2e scenario validating profile switch + failure fallback.
+- Files touched:
+  - `src/components/GraphYamlEditor/GraphYamlEditor.jsx`
+  - `src/components/GraphYamlEditor/GraphYamlEditor.test.jsx`
+  - `src/components/GraphYamlEditor/GraphYamlEditor.stories.jsx`
+  - `src/profile/catalogClient.js`
+  - `src/profile/useProfileCatalog.js`
+  - `src/index.js`
+  - `e2e/autocomplete.behavior.spec.ts`
+  - `vitest.config.js`
+  - `package-lock.json`
+  - `README.md`
+  - `PROJECT_CONTEXT.md`
+  - `SESSION_NOTES.md`
+- Tests run:
+  - `npm test`
+  - `npm run test:e2e`
+  - `npm run build`
+- Known issues: none.
+- Next steps:
+  - Wire host applications to pass canonical `profileId` + `profileVersion` + `checksum`.
+
 ### 2026-02-25 (GraphAutocompleteCore integration)
 - Summary: Moved Storybook/e2e autocomplete harness logic to new `GraphAutocompleteCore` repository.
 - Changes:

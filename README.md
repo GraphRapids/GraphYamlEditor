@@ -20,6 +20,8 @@ Reusable React Monaco YAML editor component for graph authoring with context-awa
 - Keyboard interaction flows for Tab/Enter/Backspace authoring support
 - Marker rendering support for schema/syntax diagnostics
 - Root/missing-section suggest trigger behaviors used by GraphRapids apps
+- Profile-driven catalog integration via GraphAPI (`/v1/autocomplete/catalog`)
+- Non-blocking warning/fallback behavior when profile API is unavailable
 
 ## Repository Layout
 
@@ -69,6 +71,22 @@ Build package output:
 ```bash
 npm run build
 ```
+
+## Profile Catalog Integration
+
+`GraphYamlEditor` can fetch runtime type catalogs from GraphAPI and cache by active profile:
+
+- `profileId`
+- `profileApiBaseUrl`
+- `profileStage` (`published` by default)
+- `profileVersion` and `profileChecksum` (cache invalidation hints)
+
+No per-keystroke network calls are made; catalog fetch occurs on profile context changes.
+
+New exports:
+
+- `fetchProfileCatalog` (`src/profile/catalogClient.js`)
+- `useProfileCatalog` (`src/profile/useProfileCatalog.js`)
 
 Pack local tarball for sibling repository use:
 

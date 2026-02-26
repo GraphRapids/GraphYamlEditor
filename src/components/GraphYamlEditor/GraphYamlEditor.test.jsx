@@ -206,6 +206,21 @@ function createDefaultProps(overrides = {}) {
     isRootBoundaryEmptyLine: () => false,
     computeIndentBackspaceDeleteCount: () => 0,
     indentSize: 2,
+    profileId: '',
+    profileApiBaseUrl: '',
+    profileStage: 'published',
+    profileVersion: null,
+    profileChecksum: '',
+    profileCatalogCacheRef: { current: new Map() },
+    profileCatalogResolver: vi.fn(async () => ({
+      schemaVersion: 'v1',
+      profileId: 'default',
+      profileVersion: 1,
+      checksum: 'checksum',
+      nodeTypes: ['router'],
+      linkTypes: ['directed'],
+    })),
+    onProfileCatalogWarning: vi.fn(),
     ...overrides,
   };
 }
@@ -423,5 +438,87 @@ describe('GraphYamlEditor', () => {
       id: 'editor.action.triggerSuggest',
       title: 'Trigger Next Step Suggestions',
     });
+  });
+
+  it('loads and caches profile catalogs when profile id changes', async () => {
+    const resolver = vi
+      .fn()
+      .mockResolvedValueOnce({
+        schemaVersion: 'v1',
+        profileId: 'alpha',
+        profileVersion: 1,
+        checksum: 'alpha-1',
+        nodeTypes: ['router'],
+        linkTypes: ['directed'],
+      })
+      .mockResolvedValueOnce({
+        schemaVersion: 'v1',
+        profileId: 'beta',
+        profileVersion: 1,
+        checksum: 'beta-1',
+        nodeTypes: ['gateway'],
+        linkTypes: ['association'],
+      });
+    const cacheRef = { current: new Map() };
+    const nodeTypeSuggestionsRef = { current: [] };
+    const linkTypeSuggestionsRef = { current: [] };
+
+    const props = createDefaultProps({
+      profileId: 'alpha',
+      profileCatalogResolver: resolver,
+      profileCatalogCacheRef: cacheRef,
+      nodeTypeSuggestionsRef,
+      linkTypeSuggestionsRef,
+    });
+
+    const view = render(<GraphYamlEditor {...props} />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(resolver).toHaveBeenCalledTimes(1);
+    expect(nodeTypeSuggestionsRef.current).toEqual(['router']);
+    expect(linkTypeSuggestionsRef.current).toEqual(['directed']);
+
+    view.rerender(<GraphYamlEditor {...props} profileId="beta" />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(resolver).toHaveBeenCalledTimes(2);
+    expect(nodeTypeSuggestionsRef.current).toEqual(['gateway']);
+
+    view.rerender(<GraphYamlEditor {...props} profileId="alpha" />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(resolver).toHaveBeenCalledTimes(2);
+    expect(nodeTypeSuggestionsRef.current).toEqual(['router']);
+  });
+
+  it('shows a non-blocking warning when catalog loading fails', async () => {
+    const resolver = vi.fn(async () => {
+      throw new Error('network down');
+    });
+    const onProfileCatalogWarning = vi.fn();
+    const nodeTypeSuggestionsRef = { current: ['router'] };
+    const linkTypeSuggestionsRef = { current: ['directed'] };
+    const props = createDefaultProps({
+      profileId: 'broken',
+      profileCatalogResolver: resolver,
+      onProfileCatalogWarning,
+      nodeTypeSuggestionsRef,
+      linkTypeSuggestionsRef,
+    });
+
+    const view = render(<GraphYamlEditor {...props} />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(view.getByTestId('profile-catalog-warning').textContent).toContain('broken');
+    expect(onProfileCatalogWarning).toHaveBeenLastCalledWith(expect.stringContaining('broken'));
+    expect(nodeTypeSuggestionsRef.current).toEqual(['router']);
+    expect(linkTypeSuggestionsRef.current).toEqual(['directed']);
   });
 });
