@@ -1,7 +1,7 @@
 import React from 'react';
 import { useEffect, useRef } from 'react';
 import MonacoEditorReact from '@monaco-editor/react';
-import { EMPTY_PROFILE_CATALOG } from '@graphrapids/graph-autocomplete-core';
+import { EMPTY_PROFILE_CATALOG, buildYamlSuggestionInsertText } from '@graphrapids/graph-autocomplete-core';
 
 import { fetchProfileCatalog } from '../../profile/catalogClient.js';
 import { useProfileCatalog } from '../../profile/useProfileCatalog.js';
@@ -51,6 +51,7 @@ export default function GraphYamlEditor({
   lineIndent,
   inferYamlSection,
   buildCompletionDocumentation,
+  buildCompletionInsertText = buildYamlSuggestionInsertText,
   getYamlAutocompleteContext,
   isRootBoundaryEmptyLine,
   computeIndentBackspaceDeleteCount,
@@ -352,7 +353,6 @@ export default function GraphYamlEditor({
 
         const currentLine =
           typeof model.getLineContent === 'function' ? model.getLineContent(position.lineNumber) : '';
-        const currentIndent = lineIndent(currentLine);
 
         const completionItems = suggestions.map((item, idx) => {
           let itemRange = range;
@@ -360,65 +360,26 @@ export default function GraphYamlEditor({
           let insertTextRule;
           const normalizedItem = String(item || '');
           const trimmedItem = normalizedItem.trim();
-          const isItemStartLabel = /^\-\s+/.test(trimmedItem);
           const suggestionKey = trimmedItem.replace(/^\-\s+/, '').trim();
           const normalizedSuggestionKey = suggestionKey.replace(/:\s*$/, '');
-          if (context.kind === 'rootKey') {
-            const nextKey =
-              item === 'nodes'
-                ? autocompleteSpecRef.current.node.entryStartKey
-                : autocompleteSpecRef.current.link.entryStartKey;
-            insertText = `${item}:\n${' '.repeat(indentSize)}- ${nextKey}: `;
-          } else if (context.kind === 'rootItemKey') {
-            const rootKey = normalizedSuggestionKey;
-            const nextKey =
-              rootKey === 'nodes'
-                ? autocompleteSpecRef.current.node.entryStartKey
-                : autocompleteSpecRef.current.link.entryStartKey;
+          if (context.kind === 'rootItemKey' || context.kind === 'itemKey') {
             itemRange = new monaco.Range(position.lineNumber, 1, position.lineNumber, position.column);
-            insertText = `${rootKey}:\n${' '.repeat(indentSize)}- ${nextKey}: `;
-          } else if (context.kind === 'itemKey') {
-            const sectionInfo = inferYamlSection(meta.lines, position.lineNumber - 1, lineIndent(currentLine));
-            const desiredIndent = sectionInfo.sectionIndent + indentSize;
-            itemRange = new monaco.Range(position.lineNumber, 1, position.lineNumber, position.column);
-            if (isItemStartLabel) {
-              insertText = `${' '.repeat(desiredIndent)}- ${suggestionKey}: `;
-            } else {
-              const isCollectionKey = suggestionKey === 'nodes' || suggestionKey === 'links';
-              if (isCollectionKey) {
-                const nextKey =
-                  suggestionKey === 'nodes'
-                    ? autocompleteSpecRef.current.node.entryStartKey
-                    : autocompleteSpecRef.current.link.entryStartKey;
-                insertText = `${' '.repeat(desiredIndent + indentSize)}${suggestionKey}:\n${' '.repeat(
-                  desiredIndent + indentSize + indentSize
-                )}- ${nextKey}: `;
-              } else {
-                insertText = `${' '.repeat(desiredIndent + indentSize)}${suggestionKey}: `;
-              }
-            }
-          } else if (context.kind === 'key') {
-            const normalizedKey = String(item || '').trim();
-            if (normalizedKey === 'nodes' || normalizedKey === 'links') {
-              const nextKey =
-                normalizedKey === 'nodes'
-                  ? autocompleteSpecRef.current.node.entryStartKey
-                  : autocompleteSpecRef.current.link.entryStartKey;
-              insertText = `${normalizedKey}:\n${' '.repeat(indentSize)}- ${nextKey}: `;
-            } else {
-              insertText = `${normalizedKey}: `;
-            }
           } else if (context.kind === 'endpointValue' && item === ':') {
             itemRange = new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column);
-            insertText = ':';
-          } else {
-            const isTypeValueContext = context.kind === 'nodeTypeValue' || context.kind === 'linkTypeValue';
-            if (isTypeValueContext) {
-              insertText = `${item}\n$0`;
-              insertTextRule = insertTextRules.InsertAsSnippet;
-            } else {
-              insertText = item;
-            }
+          }
+
+          const insertion = buildCompletionInsertText({
+            context,
+            suggestion: item,
+            spec: autocompleteSpecRef.current,
+            indentSize,
+            lines: meta.lines,
+            lineNumber: position.lineNumber,
+            currentLine,
+          });
+          insertText = insertion.insertText;
+          if (insertion.insertAsSnippet) {
+            insertTextRule = insertTextRules.InsertAsSnippet;
           }
 
           const isValueContext =

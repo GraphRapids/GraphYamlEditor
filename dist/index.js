@@ -2590,6 +2590,8 @@ var safeLoadAll = renamed("safeLoadAll", "loadAll");
 var safeDump = renamed("safeDump", "dump");
 
 // node_modules/@graphrapids/graph-autocomplete-core/dist/index.js
+var INDENT_SIZE = 2;
+var ROOT_SECTION_ALIASES = /* @__PURE__ */ new Map([["edges", "links"]]);
 var EMPTY_PROFILE_CATALOG = Object.freeze({
   schemaVersion: "v1",
   profileId: "",
@@ -2619,6 +2621,132 @@ function createProfileCatalog(input = {}) {
     checksum: String(input.checksum || ""),
     nodeTypes: normalizeCatalogValues(input.nodeTypes),
     linkTypes: normalizeCatalogValues(input.linkTypes)
+  };
+}
+var DEFAULT_AUTOCOMPLETE_SPEC = {
+  rootSections: ["nodes", "links"],
+  node: {
+    orderedKeys: ["name", "type", "ports", "nodes", "links"],
+    requiredKeys: ["name"],
+    entryStartKey: "name"
+  },
+  link: {
+    orderedKeys: ["from", "to", "label", "type"],
+    requiredKeys: ["from", "to"],
+    entryStartKey: "from"
+  }
+};
+function lineIndent(line) {
+  const match = String(line || "").match(/^(\s*)/);
+  return match ? match[1].length : 0;
+}
+function inferYamlSection(lines, lineIndex, indent) {
+  for (let i = lineIndex; i >= 0; i -= 1) {
+    const text = lines[i];
+    const match = text.match(/^(\s*)(nodes|links|edges)\s*:\s*$/);
+    if (!match) {
+      continue;
+    }
+    const sectionIndent = match[1].length;
+    if (sectionIndent < indent || i === lineIndex) {
+      const normalizedSection = ROOT_SECTION_ALIASES.get(match[2]) || match[2];
+      return { section: normalizedSection, sectionIndent };
+    }
+  }
+  return { section: "root", sectionIndent: 0 };
+}
+function buildYamlSuggestionInsertText({
+  context,
+  suggestion,
+  spec = DEFAULT_AUTOCOMPLETE_SPEC,
+  indentSize = INDENT_SIZE,
+  lines = [],
+  lineNumber = 1,
+  currentLine = ""
+}) {
+  const normalizedItem = String(suggestion || "");
+  const trimmedItem = normalizedItem.trim();
+  const isItemStartLabel = /^-\s+/.test(trimmedItem);
+  const suggestionKey = trimmedItem.replace(/^-\s+/, "").trim();
+  const normalizedSuggestionKey = suggestionKey.replace(/:\s*$/, "");
+  const safeLines = Array.isArray(lines) && lines.length > 0 ? lines : [String(currentLine || "")];
+  const safeLineIndex = Math.max(0, Math.min(Number(lineNumber) - 1, safeLines.length - 1));
+  const resolvedCurrentLine = String(currentLine || safeLines[safeLineIndex] || "");
+  const currentIndent = lineIndent(resolvedCurrentLine);
+  if (context.kind === "rootKey") {
+    const nextKey = normalizedItem === "nodes" ? spec.node.entryStartKey : spec.link.entryStartKey;
+    return {
+      insertText: `${normalizedItem}:
+${" ".repeat(indentSize)}- ${nextKey}: `,
+      insertAsSnippet: false
+    };
+  }
+  if (context.kind === "rootItemKey") {
+    const rootKey = normalizedSuggestionKey;
+    const nextKey = rootKey === "nodes" ? spec.node.entryStartKey : spec.link.entryStartKey;
+    return {
+      insertText: `${rootKey}:
+${" ".repeat(indentSize)}- ${nextKey}: `,
+      insertAsSnippet: false
+    };
+  }
+  if (context.kind === "itemKey") {
+    const sectionInfo = inferYamlSection(safeLines, safeLineIndex, lineIndent(resolvedCurrentLine));
+    const desiredIndent = sectionInfo.sectionIndent + indentSize;
+    if (isItemStartLabel) {
+      return {
+        insertText: `${" ".repeat(desiredIndent)}- ${suggestionKey}: `,
+        insertAsSnippet: false
+      };
+    }
+    const isCollectionKey = suggestionKey === "nodes" || suggestionKey === "links";
+    if (isCollectionKey) {
+      const nextKey = suggestionKey === "nodes" ? spec.node.entryStartKey : spec.link.entryStartKey;
+      const isBoundaryLineAtItemIndent = resolvedCurrentLine.trim().length === 0 && currentIndent === desiredIndent;
+      const shouldDedentToParentCollection = isBoundaryLineAtItemIndent && sectionInfo.sectionIndent > 0;
+      const collectionKeyIndent = shouldDedentToParentCollection ? sectionInfo.sectionIndent : desiredIndent + indentSize;
+      const collectionItemIndent = collectionKeyIndent + indentSize;
+      return {
+        insertText: `${" ".repeat(collectionKeyIndent)}${suggestionKey}:
+${" ".repeat(collectionItemIndent)}- ${nextKey}: `,
+        insertAsSnippet: false
+      };
+    }
+    return {
+      insertText: `${" ".repeat(desiredIndent + indentSize)}${suggestionKey}: `,
+      insertAsSnippet: false
+    };
+  }
+  if (context.kind === "key") {
+    if (trimmedItem === "nodes" || trimmedItem === "links") {
+      const nextKey = trimmedItem === "nodes" ? spec.node.entryStartKey : spec.link.entryStartKey;
+      return {
+        insertText: `${trimmedItem}:
+${" ".repeat(indentSize)}- ${nextKey}: `,
+        insertAsSnippet: false
+      };
+    }
+    return {
+      insertText: `${trimmedItem}: `,
+      insertAsSnippet: false
+    };
+  }
+  if (context.kind === "endpointValue" && normalizedItem === ":") {
+    return {
+      insertText: ":",
+      insertAsSnippet: false
+    };
+  }
+  if (context.kind === "nodeTypeValue" || context.kind === "linkTypeValue") {
+    return {
+      insertText: `${normalizedItem}
+$0`,
+      insertAsSnippet: true
+    };
+  }
+  return {
+    insertText: normalizedItem,
+    insertAsSnippet: false
   };
 }
 
@@ -2797,9 +2925,10 @@ function GraphYamlEditor({
   buildAutocompleteMetadata,
   buildAutocompleteRuntimeFromMeta,
   getYamlAutocompleteSuggestions,
-  lineIndent,
-  inferYamlSection,
+  lineIndent: lineIndent2,
+  inferYamlSection: inferYamlSection2,
   buildCompletionDocumentation,
+  buildCompletionInsertText = buildYamlSuggestionInsertText,
   getYamlAutocompleteContext,
   isRootBoundaryEmptyLine,
   computeIndentBackspaceDeleteCount,
@@ -3068,65 +3197,31 @@ function GraphYamlEditor({
         const startColumn = Math.max(1, position.column - (context.prefix || "").length);
         const range = new monaco.Range(position.lineNumber, startColumn, position.lineNumber, position.column);
         const currentLine = typeof model2.getLineContent === "function" ? model2.getLineContent(position.lineNumber) : "";
-        const currentIndent = lineIndent(currentLine);
         const completionItems = suggestions.map((item, idx) => {
           let itemRange = range;
           let insertText;
           let insertTextRule;
           const normalizedItem = String(item || "");
           const trimmedItem = normalizedItem.trim();
-          const isItemStartLabel = /^\-\s+/.test(trimmedItem);
           const suggestionKey = trimmedItem.replace(/^\-\s+/, "").trim();
           const normalizedSuggestionKey = suggestionKey.replace(/:\s*$/, "");
-          if (context.kind === "rootKey") {
-            const nextKey = item === "nodes" ? autocompleteSpecRef.current.node.entryStartKey : autocompleteSpecRef.current.link.entryStartKey;
-            insertText = `${item}:
-${" ".repeat(indentSize)}- ${nextKey}: `;
-          } else if (context.kind === "rootItemKey") {
-            const rootKey = normalizedSuggestionKey;
-            const nextKey = rootKey === "nodes" ? autocompleteSpecRef.current.node.entryStartKey : autocompleteSpecRef.current.link.entryStartKey;
+          if (context.kind === "rootItemKey" || context.kind === "itemKey") {
             itemRange = new monaco.Range(position.lineNumber, 1, position.lineNumber, position.column);
-            insertText = `${rootKey}:
-${" ".repeat(indentSize)}- ${nextKey}: `;
-          } else if (context.kind === "itemKey") {
-            const sectionInfo = inferYamlSection(meta.lines, position.lineNumber - 1, lineIndent(currentLine));
-            const desiredIndent = sectionInfo.sectionIndent + indentSize;
-            itemRange = new monaco.Range(position.lineNumber, 1, position.lineNumber, position.column);
-            if (isItemStartLabel) {
-              insertText = `${" ".repeat(desiredIndent)}- ${suggestionKey}: `;
-            } else {
-              const isCollectionKey = suggestionKey === "nodes" || suggestionKey === "links";
-              if (isCollectionKey) {
-                const nextKey = suggestionKey === "nodes" ? autocompleteSpecRef.current.node.entryStartKey : autocompleteSpecRef.current.link.entryStartKey;
-                insertText = `${" ".repeat(desiredIndent + indentSize)}${suggestionKey}:
-${" ".repeat(
-                  desiredIndent + indentSize + indentSize
-                )}- ${nextKey}: `;
-              } else {
-                insertText = `${" ".repeat(desiredIndent + indentSize)}${suggestionKey}: `;
-              }
-            }
-          } else if (context.kind === "key") {
-            const normalizedKey = String(item || "").trim();
-            if (normalizedKey === "nodes" || normalizedKey === "links") {
-              const nextKey = normalizedKey === "nodes" ? autocompleteSpecRef.current.node.entryStartKey : autocompleteSpecRef.current.link.entryStartKey;
-              insertText = `${normalizedKey}:
-${" ".repeat(indentSize)}- ${nextKey}: `;
-            } else {
-              insertText = `${normalizedKey}: `;
-            }
           } else if (context.kind === "endpointValue" && item === ":") {
             itemRange = new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column);
-            insertText = ":";
-          } else {
-            const isTypeValueContext2 = context.kind === "nodeTypeValue" || context.kind === "linkTypeValue";
-            if (isTypeValueContext2) {
-              insertText = `${item}
-$0`;
-              insertTextRule = insertTextRules.InsertAsSnippet;
-            } else {
-              insertText = item;
-            }
+          }
+          const insertion = buildCompletionInsertText({
+            context,
+            suggestion: item,
+            spec: autocompleteSpecRef.current,
+            indentSize,
+            lines: meta.lines,
+            lineNumber: position.lineNumber,
+            currentLine
+          });
+          insertText = insertion.insertText;
+          if (insertion.insertAsSnippet) {
+            insertTextRule = insertTextRules.InsertAsSnippet;
           }
           const isValueContext = context.kind === "nodeTypeValue" || context.kind === "linkTypeValue" || context.kind === "endpointValue";
           const isKeyLikeContext = context.kind === "key" || context.kind === "itemKey";
@@ -3196,7 +3291,7 @@ $0`;
           const portPart = valueHasColon ? endpointValue.split(":").slice(1).join(":").trim() : "";
           const canAdvanceEndpoint = endpointValue.length > 0 && (!valueHasColon || portPart.length > 0);
           if (context.kind === "endpointValue" && context.section === "links" && (context.endpoint === "from" || context.endpoint === "to") && canAdvanceEndpoint) {
-            const baseIndent = lineIndent(currentLine);
+            const baseIndent = lineIndent2(currentLine);
             const nextIndent = context.endpoint === "from" ? /^\s*-\s*/.test(currentLine) ? baseIndent + indentSize : baseIndent : Math.max(0, baseIndent - indentSize);
             event.preventDefault?.();
             event.stopPropagation?.();
@@ -3225,7 +3320,7 @@ ${" ".repeat(nextIndent)}`
           const trimmedCurrentLine = currentLine.trim();
           const linkLabelValueMatch = trimmedCurrentLine.match(/^(?:-\s*)?label:\s*(.+)$/);
           if (context.section === "links" && linkLabelValueMatch && String(linkLabelValueMatch[1] || "").trim().length > 0) {
-            const baseIndent = lineIndent(currentLine);
+            const baseIndent = lineIndent2(currentLine);
             const nextIndent = /^\s*-\s*/.test(currentLine) ? baseIndent : Math.max(indentSize, baseIndent - indentSize);
             event.preventDefault?.();
             event.stopPropagation?.();
@@ -3270,8 +3365,8 @@ ${" ".repeat(nextIndent)}`
         modelLines.push(typeof model2.getLineContent === "function" ? model2.getLineContent(i) : "");
       }
       const currentLineIndex = Math.max(0, Math.min(position.lineNumber - 1, modelLines.length - 1));
-      const currentLineIndent = lineIndent(lineContent);
-      const currentSection = inferYamlSection(modelLines, currentLineIndex, currentLineIndent).section;
+      const currentLineIndent = lineIndent2(lineContent);
+      const currentSection = inferYamlSection2(modelLines, currentLineIndex, currentLineIndent).section;
       const shouldUseRootBoundaryHandling = isRootBoundaryEmptyLine(modelLines, currentLineIndex) && currentSection === "root";
       if (shouldUseRootBoundaryHandling) {
         event.preventDefault?.();

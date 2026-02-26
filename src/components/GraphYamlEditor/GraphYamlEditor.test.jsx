@@ -404,6 +404,38 @@ describe('GraphYamlEditor', () => {
     expect(suggestion.insertText).toBe('    nodes:\n      - name: ');
   });
 
+  it('dedents collection-key continuation at boundary lines in nested node sections', () => {
+    const props = createDefaultProps({
+      value: 'nodes:\n  - name: subgraph\n    nodes:\n      - name: subnode-1\n      - name: subnode-2\n      ',
+      inferYamlSection: () => ({ section: 'nodes', sectionIndent: 4 }),
+      buildAutocompleteRuntimeFromMeta: () => ({
+        context: { kind: 'itemKey', section: 'nodes', prefix: '' },
+        objectKeys: [],
+        itemContextKeys: ['name'],
+        canContinueItemContext: true,
+        entities: { nodeNames: [], portsByNode: new Map() },
+      }),
+      getYamlAutocompleteSuggestions: () => ['  links'],
+    });
+    state.modelValue = props.value;
+    render(<GraphYamlEditor {...props} />);
+
+    const model = {
+      getValue: () => props.value,
+      getVersionId: () => 101,
+      getLineContent: () => '      ',
+    };
+
+    const result = state.completionProvider.provideCompletionItems(model, {
+      lineNumber: 6,
+      column: 7,
+    });
+
+    const suggestion = result.suggestions.find((item) => item.label === '  links');
+    expect(suggestion).toBeTruthy();
+    expect(suggestion.insertText).toBe('    links:\n      - from: ');
+  });
+
   it('inserts type values as snippets and triggers next-step suggestions', () => {
     const props = createDefaultProps({
       value: 'nodes:\n  - name: A\n    type: ro',
