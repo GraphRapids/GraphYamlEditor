@@ -6,8 +6,10 @@ function trimTrailingSlash(value = '') {
 
 export async function fetchProfileCatalog({
   baseUrl,
+  graphTypeId,
   profileId,
   stage = 'published',
+  graphTypeVersion,
   profileVersion,
   fetchImpl = globalThis.fetch,
   signal,
@@ -16,8 +18,9 @@ export async function fetchProfileCatalog({
   if (!normalizedBaseUrl) {
     throw new Error('profileApiBaseUrl is required when profileId is set.');
   }
-  if (!profileId) {
-    throw new Error('profileId is required.');
+  const resolvedGraphTypeId = String(graphTypeId || profileId || '').trim();
+  if (!resolvedGraphTypeId) {
+    throw new Error('graphTypeId is required.');
   }
   if (typeof fetchImpl !== 'function') {
     throw new Error('No fetch implementation is available for profile catalog loading.');
@@ -25,10 +28,11 @@ export async function fetchProfileCatalog({
 
   function buildCatalogUrl() {
     const url = new URL(`${normalizedBaseUrl}/v1/autocomplete/catalog`);
-    url.searchParams.set('profile_id', profileId);
+    url.searchParams.set('graph_type_id', resolvedGraphTypeId);
     url.searchParams.set('stage', stage);
-    if (Number.isFinite(profileVersion) && Number(profileVersion) > 0) {
-      url.searchParams.set('profile_version', String(Number(profileVersion)));
+    const resolvedVersion = Number.isFinite(graphTypeVersion) ? graphTypeVersion : profileVersion;
+    if (Number.isFinite(resolvedVersion) && Number(resolvedVersion) > 0) {
+      url.searchParams.set('graph_type_version', String(Number(resolvedVersion)));
     }
     return url;
   }

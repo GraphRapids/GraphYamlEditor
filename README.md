@@ -77,6 +77,7 @@ npm run build
 `GraphYamlEditor` can fetch runtime type catalogs from GraphAPI and cache by active profile:
 
 - `profileId`
+- `graphTypeId` (preferred)
 - `profileApiBaseUrl`
 - `profileStage` (`published` by default)
 - `profileVersion` and `profileChecksum` (cache invalidation hints)
