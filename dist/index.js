@@ -2642,11 +2642,11 @@ var EMPTY_PROFILE_CATALOG = Object.freeze({
   profileId: "",
   profileVersion: 0,
   profileChecksum: "",
-  iconsetResolutionChecksum: "",
+  iconSetResolutionChecksum: "",
   checksum: "",
   nodeTypes: [],
   linkTypes: [],
-  iconsetSources: []
+  iconSetSources: []
 });
 function normalizeCatalogValues(values = []) {
   const result = [];
@@ -2668,16 +2668,16 @@ function createProfileCatalog(input = {}) {
   const runtimeChecksum = String(input.runtimeChecksum || "");
   const profileChecksum = graphTypeChecksum;
   const checksum = String(input.checksum || profileChecksum || "");
-  const iconsetSources = Array.isArray(input.iconsetSources) ? input.iconsetSources.map((item) => {
+  const iconSetSources = Array.isArray(input.iconSetSources) ? input.iconSetSources.map((item) => {
     if (!item || typeof item !== "object") {
       return null;
     }
-    const iconsetId = String(item.iconsetId || "").trim().toLowerCase();
-    const iconsetVersion = Number.isFinite(item.iconsetVersion) ? Number(item.iconsetVersion) : 0;
-    if (!iconsetId || iconsetVersion <= 0) {
+    const iconSetId = String(item.iconSetId || "").trim().toLowerCase();
+    const iconSetVersion = Number.isFinite(item.iconSetVersion) ? Number(item.iconSetVersion) : 0;
+    if (!iconSetId || iconSetVersion <= 0) {
       return null;
     }
-    return { iconsetId, iconsetVersion };
+    return { iconSetId, iconSetVersion };
   }).filter(Boolean) : [];
   return {
     schemaVersion: String(input.schemaVersion || "v1"),
@@ -2688,11 +2688,11 @@ function createProfileCatalog(input = {}) {
     profileId: graphTypeId,
     profileVersion: graphTypeVersion,
     profileChecksum,
-    iconsetResolutionChecksum: String(input.iconsetResolutionChecksum || ""),
+    iconSetResolutionChecksum: String(input.iconSetResolutionChecksum || ""),
     checksum,
     nodeTypes: normalizeCatalogValues(input.nodeTypes),
     linkTypes: normalizeCatalogValues(input.linkTypes),
-    iconsetSources
+    iconSetSources
   };
 }
 var DEFAULT_AUTOCOMPLETE_SPEC = {
