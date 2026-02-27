@@ -27,8 +27,14 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Prepare internal package tarball
+        run: |
+          git clone --depth 1 https://github.com/GraphRapids/GraphAutocompleteCore.git ../GraphAutocompleteCore
+          (cd ../GraphAutocompleteCore && npm pack --silent >/dev/null)
+          ls -l ../GraphAutocompleteCore/*.tgz
+
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Run tests (coverage threshold)
         run: npm run test
