@@ -29,6 +29,12 @@ Main responsibilities:
 - Fetch/cache profile catalogs by active `profileId` without per-keystroke API calls.
 - Degrade gracefully when profile API is unavailable (non-blocking warning + editor continuity).
 
+Catalog naming conventions:
+- Consume canonical camelCase icon-set metadata fields from catalogs:
+  - `iconSetResolutionChecksum`
+  - `iconSetSources`
+  - source entries with `iconSetId` and `iconSetVersion`
+
 ## Behavior Contract Source
 - `AUTOCOMPLETE_BEHAVIOR_TEMPLATE.md` in GraphEditor is the contract reference used for scenario alignment.
 

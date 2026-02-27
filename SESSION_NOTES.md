@@ -14,6 +14,24 @@ Use this file as a running log between work sessions.
 
 ## Current
 
+### 2026-02-27
+- Summary: Refreshed package artifacts after icon-set naming normalization in shared autocomplete core.
+- Changes:
+  - Reinstalled rebuilt `@graphrapids/graph-autocomplete-core` tarball.
+  - Rebuilt GraphYamlEditor dist artifacts to keep generated output aligned with canonical `iconSet*` naming.
+  - Updated project context naming notes.
+- Files touched:
+  - `dist/index.js`
+  - `dist/index.js.map`
+  - `package-lock.json`
+  - `PROJECT_CONTEXT.md`
+- Tests run:
+  - `npm test -- --run src/components/GraphYamlEditor/GraphYamlEditor.test.jsx` (11 passed)
+  - `npm run build`
+- Known issues: none.
+- Next steps:
+  - Continue refreshing package lock/dist whenever upstream autocomplete-core contract changes.
+
 ### 2026-02-26
 - Summary: Added GraphAPI profile catalog integration with cache invalidation semantics and graceful fallback behavior.
 - Changes:
