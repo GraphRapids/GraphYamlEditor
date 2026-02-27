@@ -32,14 +32,8 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
 
-      - name: Prepare internal package tarball
-        run: |
-          git clone --depth 1 https://github.com/GraphRapids/GraphAutocompleteCore.git ../GraphAutocompleteCore
-          (cd ../GraphAutocompleteCore && npm pack --silent >/dev/null)
-          ls -l ../GraphAutocompleteCore/*.tgz
-
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run tests (coverage threshold)
         run: npm run test

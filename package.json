@@ -31,7 +31,7 @@
     "react-dom": "^18.0.0 || ^19.0.0"
   },
   "devDependencies": {
-    "@graphrapids/graph-autocomplete-core": "file:../GraphAutocompleteCore/graphrapids-graph-autocomplete-core-0.1.0.tgz",
+    "@graphrapids/graph-autocomplete-core": "git+https://github.com/GraphRapids/GraphAutocompleteCore.git#0f2621a7ccfd06b42021c9e232f93f0ff9d70d84",
     "@monaco-editor/react": "^4.7.0",
     "@playwright/test": "^1.58.2",
     "@storybook/addon-a11y": "^10.2.12",
