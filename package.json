@@ -20,6 +20,7 @@
     "clean": "rm -rf dist coverage",
     "test": "vitest run --coverage",
     "test:watch": "vitest",
+    "test:integration": "node --test tests/integration/*.integration.mjs",
     "storybook": "storybook dev -p 6006 --no-open",
     "build-storybook": "storybook build",
     "test:e2e": "playwright test",

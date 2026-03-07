@@ -1,0 +1,13 @@
+services:
+  graph-yaml-editor:
+    build: .
+    ports:
+      - "6080:6080"
+    environment:
+      PORT: "6080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:6080/health"]
+      interval: 10s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
