@@ -33,11 +33,16 @@ src/components/GraphYamlEditor/GraphYamlEditor.test.jsx
 src/components/GraphYamlEditor/GraphYamlEditor.stories.jsx
 src/test/setup.js                                 # test setup
 e2e/autocomplete.behavior.spec.ts                 # playwright autocomplete behavior suite
+tests/integration/                                # integration tests (run against live service)
 playwright.config.ts                              # playwright configuration
 scripts/build.mjs                                 # package build script
+scripts/serve.mjs                                 # production static server with /health
 vitest.config.js                                  # test configuration
+vitest.integration.config.js                      # integration test configuration
 .storybook/                                       # storybook configuration
 .github/workflows/                                # CI, tests, release, secret scan
+Dockerfile                                        # multi-stage production image
+docker-compose.yml                                # service orchestration
 ```
 
 ## Development
@@ -71,6 +76,56 @@ Build package output:
 ```bash
 npm run build
 ```
+
+## Docker
+
+GraphYamlEditor ships a multi-stage Dockerfile that builds Storybook into a production-like static server image.
+
+**Exposed port:** `8080`
+
+Build the image:
+
+```bash
+docker compose build
+```
+
+Start the service (waits for health check):
+
+```bash
+docker compose up --wait
+```
+
+Stop the service:
+
+```bash
+docker compose down
+```
+
+The service exposes a health check endpoint at `GET /health` that returns:
+
+```json
+{"status": "ok"}
+```
+
+## Integration Tests
+
+Integration tests live in `tests/integration/` and run against a live instance of the service over HTTP. They do **not** import application internals.
+
+Prerequisites: the service must be running (e.g., via `docker compose up --wait`).
+
+Run integration tests:
+
+```bash
+npm run test:integration
+```
+
+To run against a custom URL:
+
+```bash
+SERVICE_URL=http://my-host:8080 npm run test:integration
+```
+
+The default `SERVICE_URL` is `http://localhost:8080`.
 
 ## Profile Catalog Integration
 
@@ -124,10 +179,6 @@ Autocomplete harness behavior in Storybook/e2e is provided by `@graphrapids/grap
 
 ## Acknowledgements
 
-- [React](https://react.dev/) for the component runtime.
-- [Monaco Editor](https://microsoft.github.io/monaco-editor/) and [`@monaco-editor/react`](https://github.com/suren-atoyan/monaco-react) for the editor integration.
-- The GraphRapids maintainers and contributors for shaping the authoring behavior contract used by this component.
-
-## License
-
-Apache License 2.0 (`LICENSE`).
+- [React](https://reactjs.org/)
+- [Monaco Editor](https://microsoft.github.io/monaco-editor/)
+- [@monaco-editor/react](https://github.com/suren-atoyan/monaco-react)
